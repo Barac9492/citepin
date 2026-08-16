@@ -112,6 +112,7 @@ class NoCookieRedirectHandler(urllib.request.HTTPRedirectHandler):
         )
         if new_req is None:
             return None
+        # urllib may copy headers; strip anything cookie-like just in case.
         for header in ("Cookie", "Authorization", "Proxy-Authorization"):
             if new_req.has_header(header):
                 new_req.remove_header(header)
@@ -348,6 +349,7 @@ def _matched_disallow_paths(rp: urllib.robotparser.RobotFileParser, url: str) ->
     """
     parsed = urllib.parse.urlparse(url)
     path = parsed.path or "/"
+    # Mirror RobotFileParser.can_fetch quoting of path + query.
     filename = urllib.parse.quote(
         urllib.parse.urlunparse(("", "", path, parsed.params, parsed.query, ""))
     )
@@ -372,6 +374,7 @@ def _matched_disallow_paths(rp: urllib.robotparser.RobotFileParser, url: str) ->
 
 
 def robots_decision(url: str) -> dict[str, Any]:
+
     """Fetch and honor robots.txt for UA_PRODUCT.
 
     RFC 9309: 404/410 => allow all; 401/403 => disallow all.
@@ -399,7 +402,7 @@ def robots_decision(url: str) -> dict[str, Any]:
 
     if got["error"] and status is None:
         rec["decision"] = "unavailable"
-        rec["allowed"] = True
+        rec["allowed"] = True  # fail-soft: do not invent a disallow
         rec["note"] = f"robots.txt network error; fail-soft allow. {got['error']}"
         return rec
 
@@ -432,6 +435,8 @@ def robots_decision(url: str) -> dict[str, Any]:
     rp.parse(text.splitlines())
     patched = _patch_query_pattern_rules(rp, text)
     allowed = bool(rp.can_fetch(UA_PRODUCT, url))
+    # stdlib urlunparse also drops an empty '?' on the *URL*, so /TR/? would
+    # not startswith /TR/%3F. Honor the query-pattern meaning ourselves.
     if allowed and _url_has_query(url):
         path = urllib.parse.urlparse(url).path or "/"
         if path in {p[:-1] for p in patched}:
@@ -562,6 +567,7 @@ def cmd_add(url: str, pins_dir: Path) -> int:
 
     if got["login_wall"]:
         pin["error"] = got["error"] or "login/auth wall; body not stored"
+        # Do not store a login-challenge body.
         slug = slug_for(url, fetched_at)
         out = pins_dir / f"{slug}.json"
         write_json(out, pin)
@@ -614,12 +620,16 @@ def load_pin(path: Path) -> dict[str, Any]:
 
 
 def cmd_verify(pin_path: Path, pins_dir: Path) -> int:
-    """Re-hash stored payload if present; otherwise re-fetch and compare."""
+    """Re-hash stored payload if present; otherwise re-fetch and compare.
+
+    Mode is printed and is the only verify strategy used for that pin.
+    """
     pin = load_pin(pin_path)
     expected = pin.get("payload_sha256")
     payload_rel = pin.get("payload_file")
     payload_path = None
     if payload_rel:
+        # Prefer sidecar next to the pin file, then --pins-dir.
         candidate = pin_path.parent / payload_rel
         if candidate.is_file():
             payload_path = candidate
