@@ -2,7 +2,7 @@
 
 A tiny FLOSS CLI + JSON schema for a **citation-grade pin of one public web page**.
 
-This folder is a working prototype of the tool described in the NLnet Restack draft at `/workspace/income-bot/experiments/nlnet-draft/` (€19,800, DO NOT SUBMIT — calls are closed as of 2026-08-17). It is also the seed for a later [itch.io](https://itch.io/docs/creators/quality-guidelines) listing: **one original tool**, **disclosed AI**, **not a farm**.
+This folder is a working prototype of the tool described in the NLnet Restack draft at `/workspace/income-bot/experiments/nlnet-draft/` (**€19,800, DO NOT SUBMIT** — calls are closed as of 2026-08-17). It is also the seed for a later [itch.io](https://itch.io/docs/creators/quality-guidelines) listing: **one original tool**, **disclosed AI**, **not a farm**.
 
 A pin records: URL, UTC fetch time, HTTP status, media type, SHA-256 of the received payload, the robots.txt decision, and the tool version. Optional later (not in v0): WARC / WACZ pointer, minisign.
 
